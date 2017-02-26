@@ -1,5 +1,5 @@
 # ELK
-
+<pre>
 
 ########### ELK ###############
 
@@ -232,19 +232,4 @@ Desde el navegador accedo a kibana
 Helps:
 https://www.elastic.co
 http://docs.oracle.com/javase/8/docs/technotes/guides/install/linux_jdk.html#BJFJHFDD
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+</pre>
