@@ -1,67 +1,74 @@
-<img src="https://github.com/jpradoar/ELK/blob/master/img.png" />
-
-
+<p align="center">
+  <img src="https://github.com/jpradoar/ELK/blob/master/img.png"/><br>
+</p>
 Plataforma:
 	SO:  	Debian 8.6
 	Arch: 	64bits
 	RAM: 	1Gb
 	HDD: 	8Gb
 
-# -------------------------------------------------------------------------------------
+# Packages 
+
 # Logstash
-https://artifacts.elastic.co/downloads/logstash/logstash-5.3.2.deb
+	https://artifacts.elastic.co/downloads/logstash/logstash-5.3.2.deb
 
 # Elasticsearch
-https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.3.2.deb
+	https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.3.2.deb
 
 # Kibana
- https://artifacts.elastic.co/downloads/kibana/kibana-5.3.2-amd64.deb
-# -------------------------------------------------------------------------------------
-
-############################################################################################
-################### WEBSERVER - 192.168.2.136 #############################
-############################################################################################
+ 	https://artifacts.elastic.co/downloads/kibana/kibana-5.3.2-amd64.deb
 
 
-apt-get update
-apt-get install apache2 -y
-echo "<html><h1>Webserver para ELK </h1></html>" >/var/www/html/index.html
 
-# Instalar java
-echo "# jessie backports" >>/etc/apt/sources.list
-echo "deb http://http.debian.net/debian jessie-backports main" >>/etc/apt/sources.list
-apt-get update && apt-get install -y jessie-backports openjdk-8-jdk -y
+# WEBSERVER - 192.168.2.136 
 
-chequeo la version:
+# Update system
+	apt-get update
+
+# Install apache2
+	apt-get install apache2 -y
+
+# Create a basic index
+	echo "<html><h1>Webserver para ELK </h1></html>" >/var/www/html/index.html
+
+# Add repo
+	echo "# jessie backports" >>/etc/apt/sources.list
+	echo "deb http://http.debian.net/debian jessie-backports main" >>/etc/apt/sources.list
+
+# Update the system and install java
+	apt-get update && apt-get install -y jessie-backports openjdk-8-jdk -y
+
+
+# Check the version of java
 	java -version
 		openjdk version "1.8.0_121"
 
 
 
-
-cd /tmp/
-wget https://artifacts.elastic.co/downloads/logstash/logstash-5.3.2.deb
-dpkg --install logstash-5.3.2.deb 
-	(Reading database ... 46103 files and directories currently installed.)
-	Preparing to unpack logstash-5.3.2.deb ...
-	Unpacking logstash (1:5.3.2-1) over (1:5.3.2-1) ...
-	Setting up logstash (1:5.3.2-1) ...
-	Using provided startup.options file: /etc/logstash/startup.options
-	Successfully created system startup script for Logstash
-
+# Download the logstash on my webserver
+	wget https://artifacts.elastic.co/downloads/logstash/logstash-5.3.2.deb
+	dpkg --install logstash-5.3.2.deb 
+		(Reading database ... 46103 files and directories currently installed.)
+		Preparing to unpack logstash-5.3.2.deb ...
+		Unpacking logstash (1:5.3.2-1) over (1:5.3.2-1) ...
+		Setting up logstash (1:5.3.2-1) ...
+		Using provided startup.options file: /etc/logstash/startup.options
+		Successfully created system startup script for Logstash
 
 
 
 
 
-De todo el archivo de configuración solo tengo descomentado estos parametros:  (cat /etc/logstash/logstash.yml  | grep -v "#")
+
+# De todo el archivo de configuración solo tengo descomentado estos parametros:  
+	(cat /etc/logstash/logstash.yml  | grep -v "#")
 	path.data: /var/lib/logstash
 	path.config: /etc/logstash/conf.d
 	path.logs: /var/log/logstash
 
 
 
-# Agrego mi archivo para graficar apache
+# Add a basic file to graficate apache logs
 	#------------------INPUT------------------
 	input {
 	  file {
@@ -95,13 +102,7 @@ De todo el archivo de configuración solo tengo descomentado estos parametros:  
 
 
 
-
-
-
-
-
-
-# Ejecuto logstash
+# Execute logstash
 	/usr/share/logstash/bin/logstash  -f /etc/logstash/conf.d
 
 
@@ -126,48 +127,30 @@ De todo el archivo de configuración solo tengo descomentado estos parametros:  
 	}
 
 
+# ELASTICSEARCH - 192.168.2.138
 
 
-
-
-
-
-
-
-
-
-
-
-############################################################################################
-########################### ELASTICSEARCH - 192.168.2.138 #############################
-############################################################################################
-
-# Instalo 
+# Install  
 	apt-get update
 	echo "# jessie backports" >>/etc/apt/sources.list
 	echo "deb http://http.debian.net/debian jessie-backports main" >>/etc/apt/sources.list
 	apt-get install -t jessie-backports openjdk-8-jdk
  
-# Descargo
+# Download 
  	wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.3.2.deb && dpkg--install elasticsearch-5.3.2.deb
 
 # Enable service 
 	systemctl enable elasticsearch.service
 
 
-
-
 # In my case, I change of elasticsearch memory size. (I set it in 256Mb   ...I have a poor server :(
 	sed -i 's/-Xms2g/-Xms256M/g' /etc/elasticsearch/jvm.options
 	sed -i 's/-Xmx2g/-Xmx256M/g' /etc/elasticsearch/jvm.options
-
 
 # Edit the elasticsearch.yml (uncoment: path.data, network.host, http.port)
 	sed -i 's/#path.data: \/path\/to\/data/path.data: \/var\/lib\/elasticsearch /g' /etc/elasticsearch/elasticsearch.yml
 	sed -i 's/#network.host: 192.168.0.1/network.host: 0.0.0.0/g' /etc/elasticsearch/elasticsearch.yml
 	sed -i 's/#http.port: 9200/http.port: 9200/g' /etc/elasticsearch/elasticsearch.yml
-
-
 
 
 # Cosas que modifique en elasticsearch.yml
@@ -178,27 +161,7 @@ De todo el archivo de configuración solo tengo descomentado estos parametros:  
 		http.port: 9200
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-####################### KIBANA #############################
+# KIBANA 
 
 # Instalo
 	apt-get update
@@ -216,18 +179,8 @@ De todo el archivo de configuración solo tengo descomentado estos parametros:  
 	sed -i 's/#server.host: "localhost"/server.host: 0.0.0.0/g' /etc/kibana/kibana.yml
 
 
-
-
-
 # Cosas que modifique en kibana.yml
 	cat /etc/kibana/kibana.yml |grep -v "#"
 		server.host: 0.0.0.0
 		server.name: "kibana"
 		elasticsearch.url: "http://192.168.2.138:9200"
-
-
-
-
-
-
-
