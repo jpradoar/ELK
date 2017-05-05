@@ -186,3 +186,14 @@
 		server.host: 0.0.0.0
 		server.name: "kibana"
 		elasticsearch.url: "http://192.168.2.138:9200"
+
+
+
+
+# Falta terminar...
+	En el repo hay un script básico en python que genera falsos request de http para probar los graficos en kibana
+	la forma de uso es la siguiente.
+	- Descargar el script 
+	- Asignarle permisos de ejecucion   chmod +x GenerateRequest.py
+	- Ejecutar el script  ./GenerateRequest.py
+	- Ver logs en apache / elastic / kibana
