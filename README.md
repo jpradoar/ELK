@@ -1,175 +1,181 @@
-# ELK
-<pre>
+Plataforma:
+	SO:  	Debian 8.6
+	Arch: 	64bits
+	RAM: 	1Gb
+	HDD: 	8Gb
 
-########### ELK ###############
+# -------------------------------------------------------------------------------------
+# Logstash
+https://artifacts.elastic.co/downloads/logstash/logstash-5.3.2.deb
 
-Plataforma: CentOS 7
-uname -a: Linux cliente 3.10.0-514.6.2.el7.x86_64 #1 SMP Thu Feb 23 03:04:39 UTC 2017 x86_64 x86_64 x86_64 GNU/Linux
-Firewall: No
-Formato:  Virtual Machine (.vmdk)
-Virtualizador: VirtualBox
-Recursos de cada VM:
-					CORE:  2 
-					RAM:   4 Gb
-					HDD:  10 Gb
+# Elasticsearch
+https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.3.2.deb
 
-Server:  ( Elastic + logstash + Kibana )
+# Kibana
+ https://artifacts.elastic.co/downloads/kibana/kibana-5.3.2-amd64.deb
+# -------------------------------------------------------------------------------------
 
+############################################################################################
+################### WEBSERVER - 192.168.2.136 #############################
+############################################################################################
 
-#################### install basics ##########################
 
-Desabilito el selinux
-	set enforce 0
+apt-get update
+apt-get install apache2 -y
+echo "<html><h1>Webserver para ELK </h1></html>" >/var/www/html/index.html
 
+# Instalar java
+echo "# jessie backports" >>/etc/apt/sources.list
+echo "deb http://http.debian.net/debian jessie-backports main" >>/etc/apt/sources.list
+apt-get update && apt-get install -y jessie-backports openjdk-8-jdk -y
 
-Instalar net-tools para tener ifconfig y netstat (OPCIONAL)
-	yum install net-tools vim mlocate -y 
+chequeo la version:
+	java -version
+		openjdk version "1.8.0_121"
 
 
-Instalo Java (Elasticsearch requires Java 8 or later)
-	yum install java-1.8.0-openjdk -y
 
 
+cd /tmp/
+wget https://artifacts.elastic.co/downloads/logstash/logstash-5.3.2.deb
+dpkg --install logstash-5.3.2.deb 
+	(Reading database ... 46103 files and directories currently installed.)
+	Preparing to unpack logstash-5.3.2.deb ...
+	Unpacking logstash (1:5.3.2-1) over (1:5.3.2-1) ...
+	Setting up logstash (1:5.3.2-1) ...
+	Using provided startup.options file: /etc/logstash/startup.options
+	Successfully created system startup script for Logstash
 
-###################### install elasticsearch #####################
 
-Download and install the public signing key:
-	rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
 
 
-Repo de elastic
-	vim /etc/yum.repos.d/elasticsearch.repo
-		[elasticsearch-5.x]
-		name=Elasticsearch repository for 5.x packages
-		baseurl=https://artifacts.elastic.co/packages/5.x/yum
-		gpgcheck=1
-		gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
-		enabled=1
-		autorefresh=1
-		type=rpm-md
 
 
-Instalo elastic
-	yum install elasticsearch -y 
+De todo el archivo de configuración solo tengo descomentado estos parametros:  (cat /etc/logstash/logstash.yml  | grep -v "#")
+	path.data: /var/lib/logstash
+	path.config: /etc/logstash/conf.d
+	path.logs: /var/log/logstash
 
 
-Relogueo y habilito el servicio
-	systemctl daemon-reload && systemctl enable elasticsearch.service && service elasticsearch restart
 
+# Agrego mi archivo para graficar apache
+	#------------------INPUT------------------
+	input {
+	  file {
+	    path => "/var/log/apache2/access.log"
+	    start_position => "beginning"
+	  }
+	}
+	#------------------FILTER------------------
+	filter {
+	  if [path] =~ "access" {
+	    mutate { replace => { "type" => "apache_access" } }
+	    grok {
+	      match => { "message" => "%{COMBINEDAPACHELOG}" }
+	    }
+	  }
+	  date {
+	    match => [ "timestamp" , "dd/MMM/yyyy:HH:mm:ss Z" ]
+	  }
+	}
+	#------------------OUTPUT------------------
+	output {
+	 elasticsearch {
+	   # Server donde tengo mi elasticsearch
+	   hosts => ["http://192.168.2.138:9200/"]
+	   index => "apache-%{+YYYY.MM.dd}"
+	   document_type => "system_logs"
+	 }
+	 stdout { codec => rubydebug }
+	}
+	#------------------EOF------------------
 
-Me aseguro que esté corriendo
-	netstat -nltp | grep 127.0.0.1
-		tcp        0      0 127.0.0.1:25            0.0.0.0:*               LISTEN      1493/master         
-		tcp6       0      0 127.0.0.1:9200          :::*                    LISTEN      883/java            
-		tcp6       0      0 127.0.0.1:9300          :::*                    LISTEN      883/java
 
 
 
-################### install logstash #####################
 
-Importo el GPG
-	rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
 
 
-Agrego el repo
-	vim /etc/yum.repos.d/logstash.repo
-	[logstash-5.x]
-	name=Elastic repository for 5.x packages
-	baseurl=https://artifacts.elastic.co/packages/5.x/yum
-	gpgcheck=1
-	gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
-	enabled=1
-	autorefresh=1
-	type=rpm-md
 
 
-Instalo logstash
-	yum install logstash -y 
+# Ejecuto logstash
+	/usr/share/logstash/bin/logstash  -f /etc/logstash/conf.d
 
 
-Accedo al directorio de certificados
-	cd /etc/pki/tls/
+# Luego de unos instantes logstash inicia, y si accedemos a nuestro webserver por http  en el log nos tendria que mostrar algo similar a esto:
+	{
+	        "request" => "/",
+	          "agent" => "\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/53.0.2785.143 Chrome/53.0.2785.143 Safari/537.36\"",
+	           "auth" => "-",
+	          "ident" => "-",
+	           "verb" => "GET",
+	        "message" => "192.168.2.10 - - [04/May/2017:06:08:09 -0500] \"GET / HTTP/1.1\" 304 180 \"-\" \"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/53.0.2785.143 Chrome/53.0.2785.143 Safari/537.36\"",
+	           "path" => "/var/log/apache2/access.log",
+	       "referrer" => "\"-\"",
+	     "@timestamp" => 2017-05-04T11:08:11.707Z,
+	       "response" => "304",
+	          "bytes" => "180",
+	       "clientip" => "192.168.2.10",
+	       "@version" => "1",
+	           "host" => "0.0.0.0",
+	    "httpversion" => "1.1",
+	      "timestamp" => "04/May/2017:06:08:09 -0500"
+	}
 
 
-Una vez dentro, creo el certificado
-	openssl req -subj '/CN=172.16.123.143/'  -x509 -days 3650 -batch -nodes -newkey rsa:2048 -keyout private/logstash-forwarder.key -out certs/logstash-forwarder.crt
-	Generating a 2048 bit RSA private key
-	............................................+++
-	..........................................................................................................................+++
-	writing new private key to 'private/logstash-forwarder.key'
-	-----
 
 
-Accedo al directorio del logstash
-	cd /etc/logstash/conf.d/
 
 
-Creo el archivo de configuración
-	vim basic-config-httpd.conf	
 
 
-input {
-  file {
-    path => "/var/log/httpd/access_log"
-    start_position => "beginning"
-  }
-}
 
-filter {
-  if [path] =~ "access" {
-    mutate { replace => { "type" => "apache_access" } }
-    grok {
-      match => { "message" => "%{COMBINEDAPACHELOG}" }
-    }
-  }
-  date {
-    match => [ "timestamp" , "dd/MMM/yyyy:HH:mm:ss Z" ]
-  }
-}
 
-output {
-  elasticsearch {
-    hosts => ["localhost:9200"]
-  }
-  stdout { codec => rubydebug }
-}
-# EOF
 
 
 
-Habilito el servicio de logstash
-	systemctl enable logstash
 
+############################################################################################
+########################### ELASTICSEARCH - 192.168.2.138 #############################
+############################################################################################
 
-Inicio el servicio de logstash
-	service logstash start
+# Instalo 
+	apt-get update
+	echo "# jessie backports" >>/etc/apt/sources.list
+	echo "deb http://http.debian.net/debian jessie-backports main" >>/etc/apt/sources.list
+	apt-get install -t jessie-backports openjdk-8-jdk
+ 
+# Descargo
+ 	wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.3.2.deb && dpkg--install elasticsearch-5.3.2.deb
 
+# Enable service 
+	systemctl enable elasticsearch.service
 
-Copio el certificado a mi server cliente  (del que voy a obtener logs)
-	scp -r /etc/pki/tls/certs/logstash-forwarder.crt  root@172.16.123.144:/root/
 
 
-Copio a mi cliente el rpm del logstash que bajé al principio
-	scp -r logstash-5.2.1.rpm  root@172.16.123.144:/root/
 
+# In my case, I change of elasticsearch memory size. (I set it in 256Mb   ...I have a poor server :(
+	sed -i 's/-Xms2g/-Xms256M/g' /etc/elasticsearch/jvm.options
+	sed -i 's/-Xmx2g/-Xmx256M/g' /etc/elasticsearch/jvm.options
 
-Copio a mi cliente el rpm del java
-	scp -r jdk-8u60-linux-x64.rpm  root@172.16.123.144:/root/
 
+# Edit the elasticsearch.yml (uncoment: path.data, network.host, http.port)
+	sed -i 's/#path.data: \/path\/to\/data/path.data: \/var\/lib\/elasticsearch /g' /etc/elasticsearch/elasticsearch.yml
+	sed -i 's/#network.host: 192.168.0.1/network.host: 0.0.0.0/g' /etc/elasticsearch/elasticsearch.yml
+	sed -i 's/#http.port: 9200/http.port: 9200/g' /etc/elasticsearch/elasticsearch.yml
 
 
-############# CLIENTE ##############
 
-Copio el certificado que acabo de pasar
-	cp logstash-forwarder.crt /etc/pki/tls/certs/
 
+# Cosas que modifique en elasticsearch.yml
+	cat /etc/elasticsearch/elasticsearch.yml | grep -v "#"
+		cluster.name: ElasticsearchSrv
+		path.data: /var/lib/elasticsearch 
+		network.host: 0.0.0.0 
+		http.port: 9200
 
-Instalo java
-	yum localinstall jdk-8u60-linux-x64.rpm -y
 
 
-Instalo el logstash
-	yum localinstall logstash-5.2.1.rpm  -y 
 
 
 
@@ -177,53 +183,44 @@ Instalo el logstash
 
 
 
-######################## install kibana #######################
 
-Importo el GPG
-	rpm --import https://artifacts.elastic.co/GPG-KEY-elasticsearch
 
 
-Agrego el repo
-	vim /etc/yum.repos.d/kibana.repo
-	[kibana-5.x]
-	name=Kibana repository for 5.x packages
-	baseurl=https://artifacts.elastic.co/packages/5.x/yum
-	gpgcheck=1
-	gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
-	enabled=1
-	autorefresh=1
-	type=rpm-md
 
 
-Instalo kibana
-	yum install kibana -y
 
 
-Modifico el archivo de configuración para acceder desde cualquier host
-		# Reemplazo este server.host: "localhost"  
-		# Por este otro.  server.host: 0.0.0.0        
+
+
+
+
+
+####################### KIBANA #############################
+
+# Instalo
+	apt-get update
+	echo "# jessie backports" >>/etc/apt/sources.list
+	echo "deb http://http.debian.net/debian jessie-backports main" >>/etc/apt/sources.list
+	apt-get install -t jessie-backports openjdk-8-jdk
+
+# Descargo
+	wget https://artifacts.elastic.co/downloads/kibana/kibana-5.3.2-amd64.deb && dpkg--install kibana-5.3.2-amd64.deb
+
+
+
+
+# Modifico
 	sed -i 's/#server.host: "localhost"/server.host: 0.0.0.0/g' /etc/kibana/kibana.yml
 
-	# en DEV
-	#sed -i 's/#elasticsearch.url: "http:\/\/localhost:9200"/elasticsearch.url: "http:\/\/172.16.123.145:9200"/g' /etc/kibana/kibana.yml
 
 
-Levanto el servicio de kibana
-	service kibana start
-		kibana started
-
-Me aseguro que esté corriendo
-	service kibana status
-		kibana is running
 
 
-Esta corriendo Ok.
-	netstat -nltp | grep 127.0.0.1     
-		tcp        0      0 127.0.0.1:5601          0.0.0.0:*               LISTEN      2274/node  
-
-
-Desde el navegador accedo a kibana
-	http://IP-del-server:5601/
+# Cosas que modifique en kibana.yml
+	cat /etc/kibana/kibana.yml |grep -v "#"
+		server.host: 0.0.0.0
+		server.name: "kibana"
+		elasticsearch.url: "http://192.168.2.138:9200"
 
 
 
@@ -231,24 +228,3 @@ Desde el navegador accedo a kibana
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Helps:
-https://www.elastic.co
-http://docs.oracle.com/javase/8/docs/technotes/guides/install/linux_jdk.html#BJFJHFDD
-</pre>
