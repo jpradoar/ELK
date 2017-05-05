@@ -1,4 +1,4 @@
-<img src="https://github.com/jpradoar/ELK/edit/master/img.png" />
+<img src="https://github.com/jpradoar/ELK/blob/master/img.png" />
 
 
 Plataforma:
