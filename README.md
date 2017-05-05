@@ -1,21 +1,21 @@
 <p align="center">
   <img src="https://github.com/jpradoar/ELK/blob/master/img.png"/><br>
 </p>
-Plataforma:
+# Plataform:
 	SO:  	Debian 8.6
 	Arch: 	64bits
 	RAM: 	1Gb
 	HDD: 	8Gb
 
-# Packages 
 
-# Logstash
+
+# Logstash package
 	https://artifacts.elastic.co/downloads/logstash/logstash-5.3.2.deb
 
-# Elasticsearch
+# Elasticsearch package
 	https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-5.3.2.deb
 
-# Kibana
+# Kibana package
  	https://artifacts.elastic.co/downloads/kibana/kibana-5.3.2-amd64.deb
 
 
