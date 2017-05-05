@@ -1,3 +1,6 @@
+<img src="https://github.com/jpradoar/ELK/edit/master/img.png" />
+
+
 Plataforma:
 	SO:  	Debian 8.6
 	Arch: 	64bits
