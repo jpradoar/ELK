@@ -1,11 +1,13 @@
 <p align="center">
   <img src="https://github.com/jpradoar/ELK/blob/master/img.png"/><br>
 </p>
+
 # Plataform:
 	SO:  	Debian 8.6
 	Arch: 	64bits
 	RAM: 	1Gb
 	HDD: 	8Gb
+	All servers are Debian
 
 
 
